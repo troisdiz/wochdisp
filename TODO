@@ -1,0 +1,5 @@
+- Implement preferences dialog box to customize display
+- Enable plugins to provide themes and custom display ?
+- Add more effect when the osd text disapear (linear alpha decrease for example)
+- use autotools to build/package
+- use gettext for i18n
