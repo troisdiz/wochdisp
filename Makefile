@@ -1,10 +1,9 @@
 DEBUG_OPTS=-g
 #OPTIM_OPTS=-o2
 OPTS=-Wall -std=c99 $(DEBUG_OPTS) $(OPTIM_OPTS)
-CFLAGS=$(OPTS) `pkg-config --cflags libwnck-1.0`
+CFLAGS=$(OPTS) `pkg-config --cflags libwnck-3.0`
 
-#LDFLAGS =$(OPTS) `pkg-config --libs gtk+-2.0`
-LDFLAGS =$(OPTS) `pkg-config --libs libwnck-1.0`
+LDFLAGS =$(OPTS) `pkg-config --libs libwnck-3.0`
 RM=rm -f
 
 PRG=workspace-display-change

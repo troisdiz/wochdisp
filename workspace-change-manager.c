@@ -15,6 +15,10 @@ static void workspace_change_manager_inst_init(GTypeInstance* instance,
 static void workspace_change_manager_finalize (GObject *obj);
 static void workspace_change_manager_dispose (GObject *obj);
 
+static gboolean draw_area(GtkWidget* widget,
+    cairo_t *cairo_ctx,
+    gpointer user_data);
+static void screen_changed(GtkWidget *widget, GdkScreen *old_screen, gpointer userdata);
 static gboolean draw_area_on_expose_sevent(GtkWidget *widget,
 					   GdkEvent  *event,
 					   gpointer   user_data);
@@ -128,8 +132,8 @@ void workspace_change_manager_display_workspace_name(WorkspaceChangeManager* sel
 			      1,
 			      1);
   
-  GdkScreen *screen = gtk_widget_get_screen(self->window);
-  GdkColormap *colormap = gdk_screen_get_rgba_colormap(screen);
+  //GdkScreen *screen = gtk_widget_get_screen(self->window);
+  /*GdkColormap *colormap = gdk_screen_get_rgba_colormap(screen);
   
   if (!colormap) {
 #ifdef DEBUG
@@ -138,23 +142,36 @@ void workspace_change_manager_display_workspace_name(WorkspaceChangeManager* sel
     colormap = gdk_screen_get_rgb_colormap(screen);
   }
   // Now we have a colormap appropriate for the screen, use it 
-  gtk_widget_set_colormap(self->window, colormap);
+  gtk_widget_set_colormap(self->window, colormap);*/
   
   gtk_widget_set_app_paintable(self->window, TRUE);
+  gtk_window_set_decorated(GTK_WINDOW(self->window), FALSE);
 
   gtk_window_set_position(GTK_WINDOW(self->window),
 			  GTK_WIN_POS_CENTER_ALWAYS);
   darea = gtk_drawing_area_new();
-  
+ 
   gtk_container_add(GTK_CONTAINER(self->window),
 		    darea);
   
-  
-  g_signal_connect (darea, "expose-event",
-		    G_CALLBACK (draw_area_on_expose_sevent),
+  g_signal_connect (darea, "draw",
+		    G_CALLBACK (draw_area),
 		    self);
+  //g_signal_connect(G_OBJECT(self->window), "screen-changed", G_CALLBACK(screen_changed), NULL);
+
+  GdkScreen *screen = gtk_widget_get_screen(self->window);
+  GdkVisual *visual = gdk_screen_get_rgba_visual(screen);
+
+  if (!visual) {
+      printf("Bof\n");
+  } else {
+      printf("Your screen supports alpha channels!\n");
+      gtk_widget_set_visual(self->window, visual);
+  }
+
   gtk_widget_realize (self->window);
-  gdk_window_set_back_pixmap(self->window->window, NULL, FALSE);
+  //TODO gdk_window_set_back_pixmap(self->window->window, NULL, FALSE);
+ 
   gtk_widget_show(darea);
   gtk_widget_show(self->window);
 
@@ -167,6 +184,91 @@ void workspace_change_manager_display_workspace_name(WorkspaceChangeManager* sel
 #define PADDING_RIGHT  20
 #define PADDING_TOP    10
 #define PADDING_BOTTOM 10
+
+static gboolean draw_area(GtkWidget* widget,
+    cairo_t *cairo_ctx,
+    gpointer user_data) {
+
+    PangoLayout* pangoLayout;
+    PangoFontDescription *fontDesc = NULL;
+    int width;
+    int height;
+
+    int widget_width;
+    int widget_height;
+
+    WorkspaceChangeManager* wcm = WORKSPACE_CHANGE_MANAGER(user_data);
+  
+    char* display_string = wcm->display_string;
+  
+    pangoLayout = pango_cairo_create_layout(cairo_ctx);
+    pango_layout_set_text(pangoLayout,
+            display_string,
+			-1);
+    
+    fontDesc = pango_font_description_from_string("Monospace 48");
+#ifdef DEBUG
+    if (fontDesc == NULL) {
+        printf("fontDesc is null\n");
+    }
+#endif
+    pango_layout_set_font_description(pangoLayout,
+				    fontDesc);
+    pango_font_description_free(fontDesc);
+
+    pango_layout_get_pixel_size(pangoLayout,
+			      &width,
+			      &height);
+    widget_width = width+PADDING_LEFT+PADDING_RIGHT;
+    widget_height = height+PADDING_TOP+PADDING_BOTTOM;
+
+    gtk_widget_set_size_request(widget,
+			      widget_width,
+			      widget_height);
+#ifdef DEBUG
+    printf("    pango layout get pixel size : width = %d, height = %d\n",
+  	 width,
+  	 height);
+    printf("    gtk widget requester : width = %d, height = %d\n",
+  	 widget_width,
+  	 widget_height);
+#endif
+    
+    cairo_set_source_rgba(cairo_ctx, 0.0, 0.0, 0.0, 0.0);
+    cairo_set_operator (cairo_ctx, CAIRO_OPERATOR_SOURCE);
+    cairo_paint (cairo_ctx);
+  
+    cairo_set_source_rgba(cairo_ctx, 1.0, 1.0, 1.0, 1.0);
+    
+    cairo_translate(cairo_ctx, PADDING_LEFT, PADDING_TOP);
+    
+    pango_cairo_update_layout(cairo_ctx, pangoLayout);  
+    pango_cairo_layout_path(cairo_ctx, pangoLayout);
+    cairo_fill_preserve(cairo_ctx);
+  
+    //cairo_set_source_rgba(cairo_ctx, 1.0, 1.0, 1.0, 1.0);
+    cairo_set_source_rgba(cairo_ctx, 0.3, 0.4, 0.6, 1.0);
+    //pango_cairo_layout_path(cairo_ctx, pangoLayout);
+    cairo_stroke(cairo_ctx);
+    
+    g_object_unref(pangoLayout);
+    //cairo_destroy(cairo_ctx);
+  
+    return TRUE;
+}
+
+static void screen_changed(GtkWidget *widget, GdkScreen *old_screen, gpointer userdata)
+{
+    GdkScreen *screen = gtk_widget_get_screen(widget);
+    GdkVisual *visual = gdk_screen_get_rgba_visual(screen);
+
+    if (!visual) {
+        printf("Bof\n");
+    } else {
+        printf("Your screen supports alpha channels!\n");
+        gtk_widget_set_visual(widget, visual);
+    }
+}
 
 static gboolean draw_area_on_expose_sevent(GtkWidget *widget,
 					   GdkEvent  *event,
@@ -182,8 +284,9 @@ static gboolean draw_area_on_expose_sevent(GtkWidget *widget,
   char* display_string = wcm->display_string;
   
   darea_window = gtk_widget_get_window(widget);
-  
-  cairo_ctx = gdk_cairo_create(GDK_DRAWABLE(darea_window));
+  cairo_region_t* region = gdk_window_get_visible_region (darea_window);
+  GdkDrawingContext* gdk_drawing_context = gdk_window_begin_draw_frame(darea_window, region);
+  cairo_ctx = gdk_drawing_context_get_cairo_context(gdk_drawing_context); 
   
   pangoLayout = pango_cairo_create_layout(cairo_ctx);
   pango_layout_set_text(pangoLayout,

@@ -86,9 +86,9 @@ int main(int argc, char** argv) {
   WnckScreen* wnck_screen = wnck_screen_get(0);
   wnck_screen_force_update(wnck_screen);
   
-  const char* wm_name = wnck_screen_get_window_manager_name(wnck_screen);
 
 #ifdef DEBUG
+  const char* wm_name = wnck_screen_get_window_manager_name(wnck_screen);
   printf("Window Manager Name : %s\n", wm_name);
 #endif
   g_signal_connect (wnck_screen,
